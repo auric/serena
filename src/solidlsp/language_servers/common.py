@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 from collections.abc import Sequence
@@ -60,7 +61,7 @@ class RuntimeDependencyCollection:
             if dep.url:
                 self._install_from_url(dep, logger, target_dir)
             if dep.command:
-                self._run_command(dep.command, target_dir)
+                self._run_command(dep.command, logger, target_dir)
             if dep.binary_name:
                 results[dep.id] = os.path.join(target_dir, dep.binary_name)
             else:
@@ -68,30 +69,33 @@ class RuntimeDependencyCollection:
         return results
 
     @staticmethod
-    def _run_command(command: str, cwd: str) -> None:
-        if PlatformUtils.get_platform_id().value.startswith("win"):
-            subprocess.run(
-                command,
-                input='',  # Needed for Claude Code on Windows to avoid hanging
-                # shell=True, # Do not enable this on Windows, as  it breaks Claude Code compatibility
-                check=True,
-                cwd=cwd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        else:
-            import pwd
+    def _run_command(command: str, logger: LanguageServerLogger, cwd: str) -> None:
+        try:
+            if PlatformUtils.get_platform_id().value.startswith("win"):
+                subprocess.run(
+                    command,
+                    input='',  # Needed for Claude Code on Windows to avoid hanging
+                    # shell=True, # Do not enable this on Windows, as  it breaks Claude Code compatibility
+                    check=True,
+                    cwd=cwd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                import pwd
 
-            user = pwd.getpwuid(os.getuid()).pw_name
-            subprocess.run(
-                command,
-                shell=True,
-                check=True,
-                user=user,
-                cwd=cwd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+                user = pwd.getpwuid(os.getuid()).pw_name
+                subprocess.run(
+                    command,
+                    shell=True,
+                    check=True,
+                    user=user,
+                    cwd=cwd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except Exception as e:
+            logger.log(f"Command '{command}' failed with error: {e}", logging.ERROR)
 
     @staticmethod
     def _install_from_url(dep: RuntimeDependency, logger: LanguageServerLogger, target_dir: str) -> None:
