@@ -72,7 +72,8 @@ class RuntimeDependencyCollection:
         if PlatformUtils.get_platform_id().value.startswith("win"):
             subprocess.run(
                 command,
-                shell=True,
+                input='',  # Needed for Claude Code on Windows to avoid hanging
+                # shell=True, # Do not enable this on Windows, as  it breaks Claude Code compatibility
                 check=True,
                 cwd=cwd,
                 stdout=subprocess.DEVNULL,
